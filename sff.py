@@ -12,7 +12,7 @@ For more computational details, see the paper at https://www.tandfonline.com/doi
 
 AUTHORS:
 
-- Giovanni Staglianò (2023-05-06): initial version
+- Giovanni Staglianò (2023-05-12): initial version
 
 """
 
@@ -42,11 +42,11 @@ from sage.schemes.projective.projective_space import ProjectiveSpace
 from sage.schemes.projective.projective_subscheme import AlgebraicScheme_subscheme_projective
 from sage.schemes.projective.projective_morphism import SchemeMorphism_polynomial_projective_space, SchemeMorphism_polynomial_projective_space_field
 from sage.schemes.generic.morphism import SchemeMorphism
+from sage.rings.ideal import Ideal
+from sage.functions.other import binomial
 from sage.libs.singular.function_factory import singular_function
 _minbase = singular_function('minbase')
 import random
-from sage.all import ideal, binomial
-# from sage.all import *
 
 def update_macaulay2_packages():
     r"""Update some ``Macaulay2`` packages to their latest version.
@@ -264,7 +264,7 @@ class Embedded_Projective_Variety(AlgebraicScheme_subscheme_projective):
 
         A string.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: X = PP(3).empty().random(2,2)
             sage: latex(X)
@@ -952,7 +952,7 @@ class Embedded_Projective_Variety(AlgebraicScheme_subscheme_projective):
     def union(self, other):
         r"""Return the scheme-theoretic union of ``self`` and ``other`` in their common ambient space.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: P = PP(5)
             sage: X = P.point()
@@ -974,7 +974,7 @@ class Embedded_Projective_Variety(AlgebraicScheme_subscheme_projective):
     def difference(self, other):
         r"""Return the Zariski closure of the difference of ``self`` by ``other``.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: X = Veronese(1,3)
             sage: Y = X.ambient().point()
@@ -1342,7 +1342,7 @@ class Rational_Map_Between_Embedded_Projective_Varieties(SchemeMorphism_polynomi
 
         :class:`Embedded_Projective_Variety`, the closure of the image of ``Z`` via the rational map ``self``, a subvariety of ``self.target()``.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: f = veronese(2,3)
             sage: p = f.source().point()
@@ -1526,7 +1526,7 @@ class Rational_Map_Between_Embedded_Projective_Varieties(SchemeMorphism_polynomi
     def make_dominant(self):
         r"""Return a new rational map with the same source variety and same defining polynomials but with ``self.target()`` replaced by ``self.image()``
     
-        EXAMPLE::
+        EXAMPLES::
 
             sage: f = veronese(1,4); f
             rational map defined by forms of degree 4
@@ -1559,7 +1559,7 @@ class Rational_Map_Between_Embedded_Projective_Varieties(SchemeMorphism_polynomi
 
         :class:`Rational_Map_Between_Embedded_Projective_Varieties`, the composition of ``self`` with ``f``.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: f = rational_map(Veronese(1,4))
             sage: g = rational_map(f.target().point())
@@ -1596,7 +1596,7 @@ class Rational_Map_Between_Embedded_Projective_Varieties(SchemeMorphism_polynomi
 
         :class:`Rational_Map_Between_Embedded_Projective_Varieties`, the restriction of ``self`` to ``X``.
 
-        TEST::
+        TESTS::
 
             sage: X = fourfold(surface(1,ambient=7,KK=GF(3331)))
             sage: f = rational_map(X.surface(),1); f
@@ -1622,7 +1622,6 @@ class Rational_Map_Between_Embedded_Projective_Varieties(SchemeMorphism_polynomi
             return self._macaulay2_object
         except AttributeError:
             X = macaulay2(self.source())
-            # macaulay2.use(X.ring())
             F = macaulay2([list(self.defining_polynomials())])
             Y = macaulay2(self.target())
             self._macaulay2_object = X.Hom(Y)._operator(' ',F)
@@ -1657,7 +1656,7 @@ class Rational_Map_Between_Embedded_Projective_Varieties(SchemeMorphism_polynomi
 
         :class:`Rational_Map_Between_Embedded_Projective_Varieties`, the inverse rational map of ``self`` if ``self`` is birational, otherwise an exception is raised.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: f = veronese(1,5).make_dominant()
             sage: g = f.inverse()
@@ -1798,7 +1797,7 @@ def veronese(n, d, KK=GF(33331), var='x'):
 
     :class:`Rational_Map_Between_Embedded_Projective_Varieties`
 
-    EXAMPLE::
+    EXAMPLES::
 
         sage: veronese(2,3)
         rational map defined by forms of degree 3
@@ -1818,7 +1817,7 @@ def Veronese(n, d, KK=GF(33331), var='x'):
 
     :class:`Embedded_Projective_Variety`
 
-    EXAMPLE::
+    EXAMPLES::
 
         sage: Veronese(2,2)
         surface of degree 4 and sectional genus 0 in PP^5 cut out by 6 hypersurfaces of degree 2
@@ -1851,7 +1850,7 @@ class Rational_Projective_Surface(Embedded_Projective_Variety):
         r"""
         Return the LaTeX representation of ``self``.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: S = surface(3,1,1)
             sage: latex(S)
@@ -1877,7 +1876,7 @@ def surface(*args, KK=GF(33331), ambient=None, nodes=None):
     multiplicity 1, ``j`` general base points of multiplicity 2, ``k`` general base points 
     of multiplicity 3, and so on.
 
-    EXAMPLE::
+    EXAMPLES::
 
         sage: surface(3,1,1)
         rational surface of degree 4 and sectional genus 0 in PP^5 cut out by 6 hypersurfaces of degree 2 (the image of the plane via the linear system [3, 1, 1])
@@ -1952,7 +1951,7 @@ class Hodge_Special_Fourfold(Embedded_Projective_Variety):
     complete intersection of 3 quadrics containing ``S`` and contained 
     in a complete intersection ``V`` of 2 quadrics.
 
-    EXAMPLE::
+    EXAMPLES::
 
         sage: S = surface(5,7,0,1)
         sage: X = fourfold(S); X
@@ -2001,7 +2000,7 @@ class Hodge_Special_Fourfold(Embedded_Projective_Variety):
 
         A string.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: S = surface(3,3)
             sage: X = fourfold(S,S.random(2,2))
@@ -2126,7 +2125,7 @@ class Hodge_Special_Fourfold(Embedded_Projective_Variety):
         The generic curve of this congruence can be realized 
         as the generic fiber of the returned map. See also :meth:`detect_congruence`.
 
-        EXAMPLE::
+        EXAMPLES::
 
             sage: X = fourfold(surface(3,4))
             sage: X.fano_map(verbose=false)
@@ -2698,5 +2697,5 @@ def _print_partial_M2_output(m2_str):
 
 if __name__ == "__main__":
     print ("""┌──────────────────────────────────────┐
-│ sff.py version 1.0, date: 2023-05-10 │
+│ sff.py version 1.0, date: 2023-05-12 │
 └──────────────────────────────────────┘""")
