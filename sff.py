@@ -13,7 +13,7 @@ For more computational details, see the paper at https://www.tandfonline.com/doi
 
 AUTHORS:
 
-- Giovanni Staglianò (2023-06-02): initial version
+- Giovanni Staglianò (2023-06-13): initial version
 
 """
 
@@ -2275,7 +2275,7 @@ class _Rational_projective_surface(Embedded_projective_variety):
                 s_l = s_l + "\\mbox{ (the image of the plane via the linear system }" + latex(self._linear_system) + "\\mbox{)}"
         return s_l
 
-def surface(*args, KK=33331, ambient=None, nodes=None):
+def surface(*args, KK=33331, ambient=None, nodes=None, virtual=False):
     r"""Return a rational surface in a projective space of dimension ``ambient`` over the field ``KK``.
 
     INPUT:
@@ -2301,6 +2301,10 @@ def surface(*args, KK=33331, ambient=None, nodes=None):
     for i in v:
         if not(isinstance(i,(Integer,int))):
             raise TypeError("expected a tuple of integers")
+    if virtual:
+        if nodes is not None:
+            raise NotImplementedError("keyword 'nodes' must be None with virtual='True'")
+        return _Virtual_rational_projective_surface(*args, KK=KK, ambient=ambient)
     R = PP(2,KK=KK,var='t').coordinate_ring()
     I = ideal(R.one())
     for i in range(1,len(v)):
@@ -2337,6 +2341,75 @@ def surface(*args, KK=33331, ambient=None, nodes=None):
     S._is_ambient_space_forced = (nodes is not None and nodes > 0) or ambient_changed
     S._parametrization = f  #f.make_dominant()
     return S
+
+class _Virtual_rational_projective_surface(_Rational_projective_surface):
+    r"""The class of virtual rational surfaces.
+
+    TESTS::
+
+        sage: S = surface(5,8,0,1, virtual=True); S
+        virtual rational surface in PP^6 of degree 8 and sectional genus 3 cut out by at least 7 quadric hypersurface(s)
+        sage: S.materialize()
+        rational surface in PP^6 of degree 8 and sectional genus 3 cut out by 7 hypersurfaces of degree 2 (the image of the plane via the linear system [5, 8, 0, 1])
+        sage: S = surface(4,8, ambient=5, virtual=True); S
+        virtual rational surface in PP^5 of degree 8 and sectional genus 3 cut out by at least 13 cubic hypersurface(s)
+        sage: S.materialize()
+        rational surface in PP^5 of degree 8 and sectional genus 3 cut out by 13 hypersurfaces of degree 3
+
+    """
+    def __init__(self, *args, KK=33331, ambient=None):
+        v = args
+        N = binomial(v[0]+2,2) - 1 - sum([r * binomial(i+1,2) for i, r in enumerate(v[1:], start=1)])
+        if N < 3:
+            raise ValueError("expected ambient projective space of dimension at least 3, got " + str(N))
+        if ambient is None:
+            ambient = N
+        if N < 5 or ambient < 5:
+            print("warning: ambient projective space should be of dimension at least 5")
+        Embedded_projective_variety.__init__(self, PP(ambient, KK=KK).empty())
+        self._linear_system = list(v)
+        self._dimension = 2
+        self._degree = v[0] ** 2 - sum([r * (i ** 2) for i, r in enumerate(v[1:], start=1)])
+        self._sectional_genus = binomial(v[0]-1,2) - sum([r * binomial(i,2) for i, r in enumerate(v[1:], start=1)]) # [Hartshorne's book, p. 389, Cor. 3.7]
+        self._topological_euler_characteristic = 3 + sum(v[1:])
+        t = PolynomialRing(QQ, 1, 't').gen()
+        self._hilbert_polynomial = (1/2)*(self._degree)*t**2 + ((1/2)*(self._degree)+1-(self._sectional_genus))*t+1
+        self._codim_linear_span = max(ambient - N, 0)
+        self._exp_num_quadrics = max(Integer(binomial(ambient+2,2) - self._hilbert_polynomial(2)), 0)
+        self._exp_num_cubics = max(Integer(binomial(ambient+3,3) - self._hilbert_polynomial(3)), 0)
+
+    def _repr_(self):
+        r"""Return a string representation of the virtual surface."""
+        s = "virtual rational surface in PP^" + str(self.ambient().dimension()) + " of degree " + str(self.degree()) + " and sectional genus " + str(self.sectional_genus())
+        if self._codim_linear_span > 0:
+            s = s + " cut out by at least " + str(self._codim_linear_span) + " hyperplane(s)"
+        elif self._exp_num_quadrics > 0:
+            s = s + " cut out by at least " + str(self._exp_num_quadrics) + " quadric hypersurface(s)"
+        elif self._exp_num_cubics > 0:
+            s = s + " cut out by at least " + str(self._exp_num_cubics) + " cubic hypersurface(s)"
+        return s
+
+    def materialize(self):
+        if hasattr(self, "_materialization"):
+            return self._materialization
+        S = surface(*self._linear_system, KK=self.ambient().base_ring(), ambient=self.ambient().dimension(), nodes=None, virtual=False)
+        if S.degree() != self.degree():
+            raise Exception("failed to materialize the virtual surface, wrong degree")
+        if S.sectional_genus() != self.sectional_genus():
+            raise Exception("failed to materialize the virtual surface, wrong sectional genus")
+        if S.hilbert_polynomial().constant_coefficient() != self.hilbert_polynomial().constant_coefficient():
+            raise Exception("failed to materialize the virtual surface, wrong Hilbert polynomial")
+        if S.linear_span().codimension() != self._codim_linear_span:
+            raise Exception("failed to materialize the virtual surface, wrong linear span")
+        if S.linear_span().codimension() == 0:
+            if S.degrees_generators().count(2) != self._exp_num_quadrics:
+                print("warning: got wrong number of quadrics in materialization of virtual surface")
+            elif S.degrees_generators().count(2) == 0 and S.degrees_generators().count(3) != self._exp_num_cubics:
+                print("warning: got wrong number of cubics in materialization of virtual surface")
+        if S.topological_euler_characteristic() != self.topological_euler_characteristic():
+            raise Exception("failed to materialize the virtual surface, wrong topological Euler characteristic")
+        self._materialization = S
+        return S
 
 class Hodge_special_fourfold(Embedded_projective_variety):
     r"""The class of Hodge-special fourfolds
@@ -2483,7 +2556,7 @@ class Hodge_special_fourfold(Embedded_projective_variety):
             raise Exception("cannot find ambient fivefold")
 
     def _lattice_intersection_matrix(self, verbose=None):
-        r"""Return the matrix from which we compute the discriminant of ``self``"""
+        r"""Return the matrix from which we compute the discriminant of ``self``."""
         try:
             return self.__lattice_intersection_Matrix
         except AttributeError:
@@ -2494,7 +2567,7 @@ class Hodge_special_fourfold(Embedded_projective_variety):
             S = self.surface()
             HS2 = S.degree()
             KSHS = 2*(S.sectional_genus())-2-HS2
-            chiOS = S.hilbert_polynomial().constant_coefficient()
+            chiOS = Integer(S.hilbert_polynomial().constant_coefficient())
             c2TS = S.topological_euler_characteristic(verbose=verbose)
             KS2 = 12*chiOS-c2TS
             n = S._finite_number_of_nodes if hasattr(S,"_finite_number_of_nodes") else 0
@@ -3032,6 +3105,30 @@ class _Intersection_of_three_quadrics_in_P7(Hodge_special_fourfold):
         T.building = lambda : self._macaulay2_associated_surface_construction
         return T
 
+class _Virtual_intersection_of_three_quadrics_in_P7(_Intersection_of_three_quadrics_in_P7):
+    r"""The class of virtual Hodge-special complete intersections of three quadrics in ``PP^7``.
+
+    TESTS::
+
+        sage: S = surface(5,7,0,1, virtual=True); S
+        virtual rational surface in PP^7 of degree 9 and sectional genus 3 cut out by at least 12 quadric hypersurface(s)
+        sage: X = fourfold(S); X
+        Complete intersection of 3 quadrics in PP^7 of discriminant 47 = 8*16-9^2 containing a virtual rational surface in PP^7 of degree 9 and sectional genus 3 cut out by at least 12 quadric hypersurface(s)
+
+    """
+    def __init__(self, S):
+        if not isinstance(S,_Virtual_rational_projective_surface):
+            raise TypeError("expected a virtual rational surface")
+        if S.ambient().dimension() != 7:
+            raise ValueError("expected a surface in PP^7")
+        if S._exp_num_quadrics < 3:
+            raise ValueError("the surface must be contained in a complete intersection of three quadrics")
+        Embedded_projective_variety.__init__(self,S)
+        self._dimension = 4
+        self._degree = 8
+        self._degrees_generators = (2,2,2)
+        self._surface = S
+
 class Cubic_fourfold(Hodge_special_fourfold):
     r"""The class of Hodge-special cubic fourfolds in ``PP^5``."""
     def __init__(self, S, X, V=None, check=True):
@@ -3091,6 +3188,30 @@ class Cubic_fourfold(Hodge_special_fourfold):
         T = self._macaulay2_associated_surface_construction[3].image()
         T.building = lambda : self._macaulay2_associated_surface_construction
         return T
+
+class _Virtual_cubic_fourfold(Cubic_fourfold):
+    r"""The class of virtual Hodge-special cubic fourfolds in ``PP^5``.
+
+    TESTS::
+
+        sage: S = surface(10,0,0,10, virtual=True); S
+        virtual rational surface in PP^5 of degree 10 and sectional genus 6 cut out by at least 10 cubic hypersurface(s)
+        sage: X = fourfold(S); X
+        Cubic fourfold of discriminant 38 = 3*46-10^2 containing a virtual rational surface in PP^5 of degree 10 and sectional genus 6 cut out by at least 10 cubic hypersurface(s)
+
+    """
+    def __init__(self, S):
+        if not isinstance(S,_Virtual_rational_projective_surface):
+            raise TypeError("expected a virtual rational surface")
+        if S.ambient().dimension() != 5:
+            raise ValueError("expected a surface in PP^5")
+        if S._exp_num_cubics == 0:
+            raise ValueError("the surface must be contained in cubic hypersurface")
+        Embedded_projective_variety.__init__(self,S)
+        self._dimension = 4
+        self._degree = 3
+        self._degrees_generators = (3,)
+        self._surface = S
 
 class GushelMukai_fourfold(Hodge_special_fourfold):
     r"""The class of Hodge-special Gushel-Mukai fourfolds in ``PP^8``
@@ -3200,6 +3321,15 @@ def fourfold(S, X=None, V=None, check=True):
         sage: fourfold('general cubic 4-fold of discriminant 38',GF(65521))                                               # optional - macaulay2
         Cubic fourfold of discriminant 38 = 3*46-10^2 containing a surface in PP^5 of degree 10 and sectional genus 6 cut out by 10 hypersurfaces of degree 3
 
+    Some calculations can be performed very fast using virtual fourfolds (although this may provide meaningless answers).
+
+    EXAMPLES::
+
+        sage: S = surface(4,8,ambient=5,virtual=True); S
+        virtual rational surface in PP^5 of degree 8 and sectional genus 3 cut out by at least 13 cubic hypersurface(s)
+        sage: X = fourfold(S); X
+        Cubic fourfold of discriminant 14 = 3*26-8^2 containing a virtual rational surface in PP^5 of degree 8 and sectional genus 3 cut out by at least 13 cubic hypersurface(s)
+
     """
     if isinstance(S,str):
         if not(V is None and check is True and (X is None or isinstance(X,(int,Integer)) or X in Fields())):
@@ -3213,6 +3343,14 @@ def fourfold(S, X=None, V=None, check=True):
         F = _from_macaulay2_to_sage(Z,A)
         F._macaulay2_object = S
         return F
+    if isinstance(S,_Virtual_rational_projective_surface):
+        if X is not None or V is not None:
+            raise Exception("fourfold and ambient fivefold don't have to be passed along with a virtual rational surface")
+        if S.ambient().dimension() == 5:
+            return _Virtual_cubic_fourfold(S)
+        if S.ambient().dimension() == 7:
+            return _Virtual_intersection_of_three_quadrics_in_P7(S)
+        raise NotImplementedError("Hodge-special fourfold containing a virtual rational surface in PP^" + str(S.ambient().dimension()))
     S = _check_type_embedded_projective_variety(S)
     if X is not None:
         X = _check_type_embedded_projective_variety(X)
@@ -3564,7 +3702,7 @@ _set_macaulay2_()
 
 if __name__ == "__main__":
     print("""┌─────────────────────────────────────┐
- sff.py version 1.0, date: 2023-06-02""" +
+ sff.py version 1.0, date: 2023-06-13""" +
 ("\n with SpecialFanoFourfolds.m2 v. " + macaulay2('SpecialFanoFourfolds.Options.Version').sage() if Macaulay2().is_present() else "\n Macaulay2 not present") +
 """
 └─────────────────────────────────────┘""")
